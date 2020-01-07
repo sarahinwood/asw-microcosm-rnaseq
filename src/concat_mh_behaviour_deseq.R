@@ -27,7 +27,7 @@ dds_concat_group_mh <- copy(dds_concat_mh)
 #######
 
 ##create groupings of weevil location and behavioural response to parasitoid
-dds_concat_group_mh$group <- factor(paste(dds_concat_mh$Weevil_Location,dds_concat_mh$Behaviour,sep="_"))
+dds_concat_group_mh$group <- factor(paste(dds_concat_mh$Behaviour,sep="_"))
 
 ##add group to design
 design(dds_concat_group_mh) <- ~group
