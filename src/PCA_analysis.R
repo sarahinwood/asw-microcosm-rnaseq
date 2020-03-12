@@ -13,8 +13,9 @@ vst <- varianceStabilizingTransformation(dds_group, blind=TRUE)
 plotPCA(vst, intgroup=c("Weevil_Location", "Behaviour"))
 
 ##viral expression
-vst <- varianceStabilizingTransformation(dds_viral, blind=TRUE)
-viral_PCA <- plotPCA(vst, intgroup=c("Viral_expressed"), returnData = TRUE)
+vst_viral <- varianceStabilizingTransformation(dds_viral, blind=TRUE)
+plotPCA(vst_viral, intgroup=c("Viral_expressed"))
+viral_PCA <- plotPCA(vst_viral, intgroup=c("Viral_expressed"), returnData = TRUE)
 fwrite(viral_PCA, "output/deseq2/viral_PCA_table.csv")
 
 ##make table of PCA and viral counts data
