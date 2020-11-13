@@ -31,8 +31,8 @@ ordered_res_group <- res_group[order(res_group$padj),]
 ##Make data table and write to output
 ordered_res_group_table <- data.table(data.frame(ordered_res_group), keep.rownames = TRUE)
 ordered_sig_res_group_table <- subset(ordered_res_group_table, padj < 0.05)
-fwrite(ordered_res_group_table, "output/deseq2/asw/WT_attacked/full_res.csv")
-fwrite(ordered_sig_res_group_table, "output/deseq2/asw/WT_attacked/sig_degs.csv")
+fwrite(ordered_res_group_table, "output/deseq2/asw/WT_attacked/all_unpara_full_res.csv")
+fwrite(ordered_sig_res_group_table, "output/deseq2/asw/WT_attacked/all_unpara_sig_degs.csv")
 
 ##use to plot with different sample groups
 dds_location_attacked$Parasitism <- factor(dds_location_attacked$Parasitism_status)
@@ -43,7 +43,7 @@ plotCounts(dds_location_attacked, "ASW_TRINITY_DN4746_c0_g1", intgroup = c("Para
 ##merge DEGs with trinotate annots
 best_annot <- fread("data/asw_edited_transcript_ids/trinotate_longest_isoform.csv", na.strings = ".")
 sig_annots <- merge(ordered_sig_res_group_table, best_annot, by.x="rn", by.y="#gene_id", all.x=TRUE)
-fwrite(sig_annots, "output/deseq2/asw/WT_attacked/sig_degs_annots.csv")
+fwrite(sig_annots, "output/deseq2/asw/WT_attacked/all_unpara_sig_degs_annots.csv")
 
 
 ###compare results from analyses

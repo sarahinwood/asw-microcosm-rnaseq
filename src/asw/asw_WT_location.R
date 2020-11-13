@@ -41,8 +41,10 @@ fwrite(sig_degs_annots, "output/deseq2/asw/WT_location/sig_degs_annots.csv")
 
 EnhancedVolcano(ordered_res_group_table, x="log2FoldChange", y="padj", lab="", pointSize = 3, pCutoff=0.05)
 
+dds_location$parasitism<-factor(paste(dds$Parasitism_status))
+dds_location$attacked<-factor(paste(dds$Attacked))
 ##can add in parasitism to check DE isn't a result of parasitism
-plotCounts(dds_location, "ASW_TRINITY_DN20139_c0_g1", intgroup = c("group"))
+plotCounts(dds_location, "ASW_TRINITY_DN4314_c0_g1", intgroup = c("group"))
 
 lrt_location <- fread("output/deseq2/asw/LRT_location/sig_degs_annots.csv")
 wt_location <- sig_degs_annots

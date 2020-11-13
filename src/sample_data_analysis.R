@@ -12,10 +12,10 @@ dunedin <- subset(sample_data, Weevil_Location=="Dunedin")
 (sum(dunedin$Parasitism_status=="parasitised"))/(length(dunedin$Sample_name))
 
 dun_evasive <- subset(dunedin, Behaviour=="E")
-(sum(dun_evasive$Parasitism_status=="parasitised"))/(length(dunedin$Sample_name))
+(sum(dun_evasive$Parasitism_status=="parasitised"))/(length(dun_evasive$Sample_name))
 
 dun_nonev <- subset(dunedin, Behaviour=="N")
-(sum(dun_nonev$Parasitism_status=="parasitised"))/(length(dunedin$Sample_name))
+(sum(dun_nonev$Parasitism_status=="parasitised"))/(length(dun_nonev$Sample_name))
 
 
 ##Ruakura##
@@ -24,10 +24,10 @@ ruakura <- subset(sample_data, Weevil_Location=="Ruakura")
 (sum(ruakura$Parasitism_status=="parasitised"))/(length(ruakura$Sample_name))
 
 rua_evasive <- subset(ruakura, Behaviour=="E")
-(sum(rua_evasive$Parasitism_status=="parasitised"))/(length(dunedin$Sample_name))
+(sum(rua_evasive$Parasitism_status=="parasitised"))/(length(rua_evasive$Sample_name))
 
 rua_nonev <- subset(ruakura, Behaviour=="N")
-(sum(rua_nonev$Parasitism_status=="parasitised"))/(length(dunedin$Sample_name))
+(sum(rua_nonev$Parasitism_status=="parasitised"))/(length(rua_nonev$Sample_name))
 
 ##############################
 ##Plotting PCR Target Counts##

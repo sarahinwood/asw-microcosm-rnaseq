@@ -3,9 +3,9 @@ library("data.table")
 library("DESeq2")
 
 dds <- readRDS("output/deseq2/mh/mh_dds.rds")
-mh_trinotate_report <- fread("data/mh_edited_transcript_ids/trinotate_annotation_report.txt")
+mh_trinotate_report <- fread("data/mh_edited_transcript_ids/trinotate_longest_isoform.csv")
 ##what about best hit per gene file?
-mh_viral_blast_res <- fread("data/mh_edited_transcript_ids/viral_recip_blastx_res.csv")
+mh_viral_blast_res <- fread("data/mh_edited_transcript_ids/mh_recip_viral_blast.csv")
 
 ##create dds object for location_group analysis
 mh_dds_PCR_viral <- copy(dds)
@@ -29,8 +29,9 @@ para_virus_sig_res_annots <- merge(para_virus_sig_res, mh_trinotate_report, by.x
 
 mh_viral_blast_res$gene_id <- tstrsplit(mh_viral_blast_res$transcript_id, "_i", keep=c(1))
 mh_viral_blast_res <- mh_viral_blast_res[,-c(1)]
-para_virus_sig_recip_annots <- merge(para_virus_sig_res, mh_viral_blast_res, by.x="rn", by.y="gene_id", all.x=TRUE)
-
+mh_viral_blast_res$edited_gene_id <- paste("MH_",mh_viral_blast_res$gene_id, sep="")
+para_virus_sig_recip_annots <- merge(para_virus_sig_res_annots, mh_viral_blast_res, by.x="rn", by.y="edited_gene_id", all.x=TRUE)
+fwrite(para_virus_sig_recip_annots, "output/deseq2/mh/WT_unpara_viral/DEGs_annots.csv")
 
 ##they seem to DE many viral genes and RNAPs but not venom genes (unless hiding in those unann)
 

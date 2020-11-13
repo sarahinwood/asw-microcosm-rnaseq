@@ -3,11 +3,10 @@ library(DESeq2)
 library(ggplot2)
 library(EnhancedVolcano)
 library(fgsea)
-library(dplyr)
 
 ##Pairwise between para and para-undetected
 
-dds <- readRDS("output/deseq2/asw/asw_dds.rds")
+dds <- readRDS("output/deseq2/mh/mh_dds.rds")
 
 ##create dds object for parasitism analysis
 dds_parasitism <- copy(dds)
@@ -18,9 +17,10 @@ design(dds_parasitism) <- ~group
 ##run deseq2 and generate results
 dds_parasitism <- DESeq(dds_parasitism)
 ##save dds_group
-saveRDS(dds_parasitism, file = "output/deseq2/asw/WT_parasitism/asw_dds_parasitism.rds")
+saveRDS(dds_parasitism, file = "output/deseq2/mh/WT_parasitism/mh_dds_parasitism.rds")
 
-dds_parasitism <- readRDS("output/deseq2/asw/WT_parasitism/asw_dds_parasitism.rds")
+dds_parasitism <- readRDS("output/deseq2/mh/WT_parasitism/mh_dds_parasitism.rds")
+
 resultsNames(dds_parasitism)
 
 ##Make table of results for exposed vs control heads
@@ -31,38 +31,42 @@ ordered_res_group <- res_group[order(res_group$padj),]
 ordered_res_group_table <- data.table(data.frame(ordered_res_group), keep.rownames = TRUE)
 ordered_sig_res_group_table <- subset(ordered_res_group_table, padj < 0.05)
 ##write tables
-fwrite(ordered_res_group_table, "output/deseq2/asw/WT_parasitism/full_res.csv")
-fwrite(ordered_sig_res_group_table, "output/deseq2/asw/WT_parasitism/sig_degs.csv", col.names = TRUE, row.names = FALSE)
+fwrite(ordered_res_group_table, "output/deseq2/mh/WT_parasitism/full_res.csv")
+fwrite(ordered_sig_res_group_table, "output/deseq2/mh/WT_parasitism/sig_degs.csv", col.names = TRUE, row.names = FALSE)
+
+mh_viral_ids <- fread("data/mh_viral_transcript_ids.txt")
+mh_viral_ids$fixed_id <- paste("MH", mh_viral_ids$`#gene_id`, sep="_")
+viral_transcript_results <- subset(ordered_res_group_table, rn %in% mh_viral_ids$fixed_id)
+viral_transcript_results$sig <- (viral_transcript_results$padj<0.05)
+mh_viral_expression <- fread("data/mh_viral_expression_matrix.csv")
+mh_viral_expression$rn <- paste("MH", mh_viral_expression$`#gene_id`, sep="_")
+mh_viral_transcripts_res <- merge(mh_viral_expression, viral_transcript_results, by="rn")
+mh_viral_transcripts_res_sig <- subset(mh_viral_transcripts_res, sig=="TRUE")
+fwrite(mh_viral_transcripts_res_sig, "output/deseq2/mh/WT_parasitism/viral_degs_mh_expression.csv")
 
 ###merge with annots
-longest_trinotate_report <- fread("data/asw_edited_transcript_ids/trinotate_longest_isoform.csv")
+longest_trinotate_report <- fread("data/mh_edited_transcript_ids/trinotate_longest_isoform.csv")
 sig_degs_annots <- merge(ordered_sig_res_group_table, longest_trinotate_report, by.x="rn", by.y="#gene_id", all.x=TRUE)
-fwrite(sig_degs_annots, "output/deseq2/asw/WT_parasitism/sig_degs_annots.csv")
-##subset ribosomal genes
-ribosomal_degs <- dplyr::filter(sig_degs_annots, grepl("ribosomal protein", sprot_Top_BLASTX_hit))
-ribosomal_degs_list <- (ribosomal_degs$rn)
-ordered_res_group_table$ribosomal <- ifelse(ordered_res_group_table$rn %in% ribosomal_degs_list, "ribosomal", "other")
-##plot ribosomal DEGs with smaller points
-EnhancedVolcano(ordered_res_group_table, x="log2FoldChange", y="padj", lab="", pCutoff=0.05, pointSize=c(ifelse(ordered_res_group_table$ribosomal=="ribosomal", 1, 3)))
+fwrite(sig_degs_annots, "output/deseq2/mh/WT_parasitism/sig_degs_annots.csv")
 
-
-pointSize = c(ifelse(res$log2FoldChange>2, 8, 1)),
-
-
+EnhancedVolcano(ordered_res_group_table, x="log2FoldChange", y="padj", lab="", pointSize = 3, pCutoff=0.05)
 
 ##can add in parasitism to check DE isn't a result of parasitism
-plotCounts(dds_parasitism, "ASW_TRINITY_DN2668_c0_g1", intgroup = c("Parasitism"))
+plotCounts(dds_parasitism, "MH_TRINITY_DN1053_c1_g1", intgroup = c("group"))
 
-lrt_parasitism <- fread("output/deseq2/asw/LRT_parasitism/sig_degs_annots.csv")
-wt_parasitism <- sig_degs_annots
-vd <- venn.diagram(x = list("LRT parasitism"=lrt_parasitism$rn, "WT parasitism"=wt_parasitism$rn), filename=NULL, alpha=0.5, cex = 1, cat.cex=1, lwd=1,)
-grid.newpage()
-grid.draw(vd)
+plot_gene <- plotCounts(dds_parasitism, "MH_TRINITY_DN11733_c0_g1", 
+                        intgroup = c("group"), returnData = TRUE)
+ggplot(plot_gene,
+       aes(x = group, y = count)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess")+
+  scale_y_log10() + ylab("Normalised Count")+
+  xlab("Parasitism Status")+
+  ggtitle("MH_TRINITY_DN11733_c0_g1 - KilA")
 
 #########
 ##FGSEA##
 #########
-trinotate_report <- fread("data/asw_edited_transcript_ids/trinotate_annotation_report.txt", na.strings = ".")
+trinotate_report <- fread("data/mh_edited_transcript_ids/trinotate_annotation_report.txt", na.strings = ".")
 gene_ids <- trinotate_report[!is.na(gene_ontology_Pfam), unique(`#gene_id`)]
 go_annot_list<-data.table(trinotate_report[,unique(unlist(strsplit(gene_ontology_Pfam, "`")))])
 go_annot_table <- go_annot_list[,tstrsplit(V1, "^", fixed=TRUE)]
@@ -93,5 +97,5 @@ sum(sorted_fgsea_res$padj<0.05)
 
 sig_fgsea_res <- subset(sorted_fgsea_res, padj < 0.1)
 annot_sig_fgsea <- merge(sig_fgsea_res, go_annot_table, by.x="pathway", by.y="pathway", all.x=TRUE)
-fwrite(annot_sig_fgsea, "output/deseq2/asw/WT_parasitism/fgsea_annot_sig_terms.csv")
+fwrite(annot_sig_fgsea, "output/deseq2/mh/WT_parasitism/fgsea_annot_sig_terms.csv")
 

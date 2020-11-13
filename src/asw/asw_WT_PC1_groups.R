@@ -1,6 +1,7 @@
-library("tximport")
-library("data.table")
-library("DESeq2")
+library(tximport)
+library(data.table)
+library(DESeq2)
+library(fgsea)
 
 gene2tx <- fread("data/asw_edited_transcript_ids/Trinity.fasta.gene_trans_map", header = FALSE)
 tx2gene <- data.frame(gene2tx[, .(V2, V1)])
@@ -27,6 +28,7 @@ dds_pc1$group <- factor(paste(dds$PC1_sign))
 design(dds_pc1) <- ~group
 ##run deseq2 and generate results
 dds_pc1 <- DESeq(dds_pc1)
+saveRDS(dds_pc1, "output/deseq2/asw/WT_PC1/PC1_dds.rds")
 
 resultsNames(dds_pc1)
 
@@ -37,15 +39,17 @@ pc1_ordered_res_group <- pc1_res[order(pc1_res$padj),]
 pc1_ordered_res_group_table <- data.table(data.frame(pc1_ordered_res_group), keep.rownames = TRUE)
 pc1_ordered_sig_res_group_table <- subset(pc1_ordered_res_group_table, padj < 0.05)
 ##merge with annots
-asw_trinotate <- fread("data/asw_edited_transcript_ids/trinotate_longest_isoform.csv")
-ordered_sig_degs_annots <- merge(pc1_ordered_sig_res_group_table, asw_trinotate, by.x="rn", by.y="#gene_id", all.x=TRUE, all.y=FALSE)
+longest_trinotate <- fread("data/asw_edited_transcript_ids/trinotate_longest_isoform.csv")
+ordered_sig_degs_annots <- merge(pc1_ordered_sig_res_group_table, longest_trinotate, by.x="rn", by.y="#gene_id", all.x=TRUE, all.y=FALSE)
+fwrite(ordered_sig_degs_annots, "output/deseq2/asw/WT_PC1/sig_degs_annots.csv")
 
+plotCounts(dds_pc1, "ASW_TRINITY_DN2801_c0_g1", intgroup = c("group"), main="")
 
-plotCounts(dds_pc1, "ASW_TRINITY_DN2630_c0_g1", intgroup = c("group"), main="")
+#########
+##FGSEA##
+#########
 
-
-##fgsea analysis
-trinotate_report <- asw_trinotate
+trinotate_report <- fread("data/asw_edited_transcript_ids/trinotate_annotation_report.txt", na.strings=".")
 gene_ids <- trinotate_report[!is.na(gene_ontology_Pfam), unique(`#gene_id`)]
 full_res <- pc1_ordered_res_group_table
 
@@ -76,4 +80,7 @@ fgsea_res <- fgsea(pathways, ranks, nperm = 10000)
 sorted_fgsea_res <- fgsea_res[order(fgsea_res$padj)]
 ##
 sum(sorted_fgsea_res$padj<0.05)
-## no sig enriched terms - seems unlikely/strange given 2000 DEGs??
+
+sig_fgsea_res <- subset(sorted_fgsea_res, padj < 0.1)
+annot_sig_fgsea <- merge(sig_fgsea_res, go_annot_table, by.x="pathway", by.y="pathway", all.x=TRUE)
+fwrite(annot_sig_fgsea, "output/deseq2/asw/WT_PC1/fgsea_sig_annots.csv")

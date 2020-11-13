@@ -5,29 +5,29 @@ library(RColorBrewer)
 library(EnhancedVolcano)
 library(fgsea)
 
-dds_location_attacked <- readRDS("output/deseq2/asw/WT_location_attacked/dds_location_attacked.rds")
+dds_location_parasitism <- readRDS("output/deseq2/asw/WT_location_parasitism/dds_location_parasitism.rds")
 
-resultsNames(dds_location_attacked)
+resultsNames(dds_location_parasitism)
 
 ##Make table of results for exposed vs control heads
-res_group <- results(dds_location_attacked, contrast = c("group", "Ruakura_NO", "Dunedin_NO"), lfcThreshold = 1, alpha = 0.1)
+res_group <- results(dds_location_parasitism, contrast = c("group", "Ruakura_parasitised", "Ruakura_undetected"), lfcThreshold = 1, alpha = 0.1)
 ##Order based of padj
 ordered_res_group <- res_group[order(res_group$padj),]
 ##Make data table and write to output
 ordered_res_group_table <- data.table(data.frame(ordered_res_group), keep.rownames = TRUE)
 ordered_sig_res_group_table <- subset(ordered_res_group_table, padj < 0.05)
 ##write tables
-fwrite(ordered_res_group_table, "output/deseq2/asw/WT_location_attacked/location_ano/full_res.csv")
-fwrite(ordered_sig_res_group_table, "output/deseq2/asw/WT_location_attacked/location_ano/sig_degs.csv", col.names = TRUE, row.names = FALSE)
+fwrite(ordered_res_group_table, "output/deseq2/asw/WT_location_parasitism/ruakura_parasitism/full_res.csv")
+fwrite(ordered_sig_res_group_table, "output/deseq2/asw/WT_location_parasitism/ruakura_parasitism/sig_degs.csv", col.names = TRUE, row.names = FALSE)
 
 ###merge with annots
 longest_trinotate_report <- fread("data/asw_edited_transcript_ids/trinotate_longest_isoform.csv")
-sig_degs_annots <- merge(ordered_sig_res_group_table, longest_trinotate_report, by.x="rn", by.y="#gene_id", all.x=TRUE)
-fwrite(sig_degs_annots, "output/deseq2/asw/WT_location_attacked/location_ano/sig_degs_annots.csv")
+sig_degs_annots <- merge(ordered_sig_res_group_table, trinotate_report, by.x="rn", by.y="#gene_id", all.x=TRUE)
+fwrite(sig_degs_annots, "output/deseq2/asw/WT_location_parasitism/ruakura_parasitism/sig_degs_annots.csv")
 
 EnhancedVolcano(ordered_res_group_table, x="log2FoldChange", y="padj", lab="", pointSize = 3, pCutoff=0.05)
 
-plotCounts(dds_location_attacked, "ASW_TRINITY_DN81_c0_g3", intgroup = c("group"))
+plotCounts(dds_location_parasitism, "ASW_TRINITY_DN31995_c0_g1", intgroup = c("group"))
 
 ##################
 ##FGSEA analysis##
@@ -63,8 +63,8 @@ fgsea_res <- fgsea(pathways, ranks, nperm = 10000)
 sorted_fgsea_res <- fgsea_res[order(fgsea_res$padj)]
 ##
 sum(sorted_fgsea_res$padj<0.05)
-fwrite(sorted_fgsea_res, "output/deseq2/asw/WT_location_attacked/location_ano/fgsea_pfam_res.csv")
+fwrite(sorted_fgsea_res, "output/deseq2/asw/WT_location_parasitism/ruakura_parasitism/fgsea_pfam_res.csv")
 
 sig_fgsea_res <- subset(sorted_fgsea_res, padj < 0.1)
 annot_sig_fgsea <- merge(sig_fgsea_res, go_annot_table, by.x="pathway", by.y="pathway", all.x=TRUE)
-fwrite(annot_sig_fgsea, "output/deseq2/asw/WT_location_attacked/location_ano/sig_annot_fgsea_pfam.csv")
+fwrite(annot_sig_fgsea, "output/deseq2/asw/WT_location_parasitism/ruakura_parasitism/sig_annot_fgsea_pfam.csv")
