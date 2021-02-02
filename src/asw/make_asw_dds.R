@@ -1,8 +1,8 @@
-library("tximport")
-library("data.table")
-library("DESeq2")
+library(tximport)
+library(data.table)
+library(DESeq2)
 
-gene2tx <- fread("data/asw_edited_transcript_ids/Trinity.fasta.gene_trans_map", header = FALSE)
+gene2tx <- fread("data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/Trinity.fasta.gene_trans_map", header = FALSE)
 tx2gene <- data.frame(gene2tx[, .(V2, V1)])
 
 ##Find all salmon quant files

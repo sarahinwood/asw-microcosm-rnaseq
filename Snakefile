@@ -82,7 +82,7 @@ rule target:
      #'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta.tsv',
      expand('output/asw_mh_concat_salmon/{sample}_quant/quant.sf', sample = all_samples),
      #expand('output/kraken/reports/kraken_{sample}_report.txt', sample=all_samples),
-     'output/fastqc'
+     #'output/fastqc'
 
 rule kraken:
     input:
@@ -157,28 +157,28 @@ rule asw_mh_concat_salmon_index:
         '&> {log}'
 
 rule interproscan_ru_behaviour_unann_degs:
-	input:
-		interpro_degs = 'output/deseq2/ruakura/unann/interpro_degs.fasta'
-	output:
-		interpro_tsv = 'output/deseq2/ruakura/unann/interpro_degs.fasta.tsv'
-	params:
-		outdir = 'output/deseq2/ruakura/unann'
-	threads:
-		20
-	shell:
-		'bin/interproscan-5.31-70.0/interproscan.sh '
-		'--input {input.interpro_degs} '
-		'--seqtype n '
-		'--output-dir {params.outdir} '
-		'--cpu {threads} '
-		'--goterms'
+    input:
+        interpro_degs = 'output/deseq2/ruakura/unann/interpro_degs.fasta'
+    output:
+        interpro_tsv = 'output/deseq2/ruakura/unann/interpro_degs.fasta.tsv'
+    params:
+        outdir = 'output/deseq2/ruakura/unann'
+    threads:
+        20
+    shell:
+        'bin/interproscan-5.31-70.0/interproscan.sh '
+        '--input {input.interpro_degs} '
+        '--seqtype n '
+        '--output-dir {params.outdir} '
+        '--cpu {threads} '
+        '--goterms'
 
 rule filter_ru_behaviour_degs_for_interproscan:
     input:
         deg_ids = 'output/deseq2/ruakura/unann/interproscan_ids.txt',
         transcriptome_length_filtered = 'data/asw_transcriptome/isoforms_by_length.fasta'
     output:
-       	interpro_degs = 'output/deseq2/ruakura/unann/interpro_degs.fasta'
+        interpro_degs = 'output/deseq2/ruakura/unann/interpro_degs.fasta'
     singularity:
         bbduk_container
     log:
@@ -193,28 +193,28 @@ rule filter_ru_behaviour_degs_for_interproscan:
         '2> {log}'
 
 rule interproscan_viral_unann_degs:
-	input:
-		interpro_degs = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta'
-	output:
-		interpro_tsv = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta.tsv'
-	params:
-		outdir = 'output/deseq2/viral_expressed/no_annot'
-	threads:
-		20
-	shell:
-		'bin/interproscan-5.31-70.0/interproscan.sh '
-		'--input {input.interpro_degs} '
-		'--seqtype n '
-		'--output-dir {params.outdir} '
-		'--cpu {threads} '
-		'--goterms'
+    input:
+        interpro_degs = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta'
+    output:
+        interpro_tsv = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta.tsv'
+    params:
+        outdir = 'output/deseq2/viral_expressed/no_annot'
+    threads:
+        20
+    shell:
+        'bin/interproscan-5.31-70.0/interproscan.sh '
+        '--input {input.interpro_degs} '
+        '--seqtype n '
+        '--output-dir {params.outdir} '
+        '--cpu {threads} '
+        '--goterms'
 
 rule filter_viral_degs_for_interproscan:
     input:
         deg_ids = 'output/deseq2/viral_expressed/interproscan/interproscan_ids.txt',
         transcriptome_length_filtered = 'data/asw_transcriptome/isoforms_by_length.fasta'
     output:
-       	interpro_degs = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta'
+        interpro_degs = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta'
     singularity:
         bbduk_container
     log:
@@ -391,8 +391,8 @@ rule cat_reads:
     input:
         unpack(sample_name_to_fastq)
     output: 
-        r1 = temp('output/joined/{sample}_r1.fq.gz'),
-        r2 = temp('output/joined/{sample}_r2.fq.gz')
+        r1 = 'output/joined/{sample}_r1.fq.gz',
+        r2 = 'output/joined/{sample}_r2.fq.gz'
     threads:
         1
     shell:
