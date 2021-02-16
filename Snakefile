@@ -2,72 +2,40 @@
 import pathlib2
 import os
 import pandas
+import peppy
 
 #############
 # FUNCTIONS #
 #############
 
-def resolve_path(x):
-    return(str(pathlib2.Path(x).resolve(strict=False)))
-
-def find_read_files(read_dir):
-#Make list of files
-    path_generator = os.walk(read_dir, followlinks = True)
-    my_files = list((dirpath, filenames)
-        for (dirpath, dirname, filenames)
-        in path_generator)
-#Make new dictionary & populate with files (flowcell = key)
-    my_fastq_files = {}
-    for dirpath, filenames in my_files:
-        for filename in filenames:
-            if filename.endswith('.fastq.gz'):
-                my_flowcell = pathlib2.Path(dirpath).name
-                my_fastq = str(pathlib2.Path(dirpath,filename))
-                if my_flowcell in my_fastq_files:
-                    my_fastq_files[my_flowcell].append(my_fastq)
-                else:
-                    my_fastq_files[my_flowcell]= []
-                    my_fastq_files[my_flowcell].append(my_fastq)
-    return(my_fastq_files)
-
-def sample_name_to_fastq(wildcards):
-    sample_row = sample_key[sample_key['Sample_name'] == wildcards.sample]
-    sample_id = sample_row.iloc[-1]['OGF_sample_ID']
-    sample_flowcell = sample_row.iloc[-1]['Flow_cell']
-    sample_all_fastq = [x for x in all_fastq[sample_flowcell]
-                        if '-{}-'.format(sample_id) in x]
-    sample_r1 = sorted(list(x for x in sample_all_fastq
-                            if '_R1_' in os.path.basename(x)))
-    sample_r2 = sorted(list(x for x in sample_all_fastq
-                            if '_R2_' in os.path.basename(x)))
-    return({'r1': sample_r1, 'r2': sample_r2})
+def get_reads(wildcards):
+    input_keys = ['l6r1', 'l7r1', 'l8r1', 'l6r2', 'l7r2', 'l8r2']
+    my_pep = pep.get_sample(wildcards.sample).to_dict()
+    return {k: my_pep[k] for k in input_keys}
 
 ###########
 # GLOBALS #
 ###########
 
-read_dir = 'data/reads'
+##this parses the config & sample key files into an object named pep
+pepfile: 'data/config.yaml'
+##can now use this to generate list of all samples
+all_samples = pep.sample_table['sample_name']
+#make sample_table.csv in libre - excel format csv doesn't work
+##to test it is working go into python interpreter inside venv
+#import peppy
+#proj = peppy.Project('path/to/config.yaml')
+#proj.get_sample('sample_name')
 
-sample_key_file = 'data/sample_key.csv'
+
 
 bbduk_adapters = '/adapters.fa'
-
 star_reference_folder = 'output/star/star_reference'
 
 #containers
-bbduk_container = 'shub://TomHarrop/singularity-containers:bbmap_38.00'
-salmon_container = 'shub://TomHarrop/singularity-containers:salmon_0.11.1'
+bbduk_container = 'shub://TomHarrop/seq-utils:bbmap_38.76'
+salmon_container = 'docker://combinelab/salmon:latest'
 kraken_container = 'shub://TomHarrop/singularity-containers:kraken_2.0.7beta'
-
-#########
-# SETUP #
-#########
-# generate name to filename dictionary
-all_fastq = find_read_files(read_dir)
-
-sample_key = pandas.read_csv(sample_key_file)
-
-all_samples = sorted(set(sample_key['Sample_name']))
 
 #########
 # RULES #
@@ -111,7 +79,7 @@ rule kraken:
 
 rule asw_mh_concat_salmon_quant:
     input:
-        index_output = 'output/asw_mh_concat_salmon/transcripts_index/hash.bin',
+        index_output = 'output/asw_mh_concat_salmon/transcripts_index/refseq.bin',
         left = 'output/bbduk_trim/{sample}_r1.fq.gz',
         right = 'output/bbduk_trim/{sample}_r2.fq.gz'
     output:
@@ -140,7 +108,7 @@ rule asw_mh_concat_salmon_index:
     input:
         transcriptome_length_filtered = 'data/asw_mh_transcriptome/asw_mh_isoforms_by_length.fasta'
     output:
-        'output/asw_mh_concat_salmon/transcripts_index/hash.bin'
+        'output/asw_mh_concat_salmon/transcripts_index/refseq.bin'
     params:
         outdir = 'output/asw_mh_concat_salmon/transcripts_index'
     threads:
@@ -306,7 +274,7 @@ rule filter_ru_unann_genes:
 
 rule asw_salmon_quant:
     input:
-        index_output = 'output/asw_salmon/transcripts_index/hash.bin',
+        index_output = 'output/asw_salmon/transcripts_index/refseq.bin',
         trimmed_r1 = 'output/bbduk_trim/{sample}_r1.fq.gz',
         trimmed_r2 = 'output/bbduk_trim/{sample}_r2.fq.gz'
     output:
@@ -334,7 +302,7 @@ rule asw_salmon_index:
     input:
         transcriptome_length_filtered = 'data/asw_transcriptome/isoforms_by_length.fasta'
     output:
-        'output/asw_salmon/transcripts_index/hash.bin'
+        'output/asw_salmon/transcripts_index/refseq.bin'
     params:
         outdir = 'output/asw_salmon/transcripts_index'
     threads:
@@ -387,15 +355,15 @@ rule bbduk_trim:
 
 ##samples over 3 lanes this time - does this still work to concat all reads - think so?
 
-rule cat_reads:
+rule join_reads:
     input:
-        unpack(sample_name_to_fastq)
+        unpack(get_reads)
     output: 
         r1 = 'output/joined/{sample}_r1.fq.gz',
         r2 = 'output/joined/{sample}_r2.fq.gz'
     threads:
         1
     shell:
-        'cat {input.r1} > {output.r1} & '
-        'cat {input.r2} > {output.r2} & '
+        'cat {input.l6r1} {input.l7r1} {input.l8r1} > {output.r1} & '
+        'cat {input.l6r2} {input.l7r2} {input.l8r2} > {output.r2} & '
         'wait'

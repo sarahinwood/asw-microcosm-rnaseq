@@ -11,7 +11,7 @@ dds <- readRDS("output/deseq2/asw/asw_dds.rds")
 vst <- varianceStabilizingTransformation(dds, blind=TRUE)
 ##plot PCA with first 2 dimensions to investigate sample clustering
 ##can change intgroup to anoy factor/s in sample key to change point colours
-plotPCA(vst, intgroup=c("Weevil_Location"))
+plotPCA(vst, intgroup=c("Parasitism_PCR"))
 
 PCA_dt <- plotPCA(vst, intgroup=c("Parasitism_PCR"), returnData=TRUE)
 fwrite(PCA_dt, "output/deseq2/asw/PCA/PCA_dt.csv")

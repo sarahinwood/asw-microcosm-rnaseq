@@ -13,8 +13,8 @@ names(quant_files) <- gsub(".*/(.+)_quant/.*", "\\1", quant_files)
 ##for methods that only provide transcript level estimaates e.g. salmon)
 txi <- tximport(quant_files, type = "salmon", tx2gene = tx2gene, dropInfReps=TRUE)
 ##Import table describing samples
-sample_data <- fread("data/sample_key.csv", header=TRUE)
-setkey(sample_data, Sample_name)
+sample_data <- fread("data/sample_table.csv", header=TRUE)
+setkey(sample_data, sample_name)
 
 ##create dds object and link to sample data  
 dds <- DESeqDataSetFromTximport(txi, colData = sample_data[colnames(txi$counts)], design = ~1)
