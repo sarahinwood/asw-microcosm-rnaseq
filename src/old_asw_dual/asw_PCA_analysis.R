@@ -1,6 +1,6 @@
-library("DESeq2")
-library("data.table")
-library("ggplot2")
+library(DESeq2)
+library(data.table)
+library(ggplot2)
 
 sample_data <- fread("data/sample_key.csv")
 ##read in dds saved in previous script

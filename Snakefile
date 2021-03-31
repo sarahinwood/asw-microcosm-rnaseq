@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-import pathlib2
-import os
-import pandas
 import peppy
 
 #############
@@ -27,8 +24,6 @@ all_samples = pep.sample_table['sample_name']
 #proj = peppy.Project('path/to/config.yaml')
 #proj.get_sample('sample_name')
 
-
-
 bbduk_adapters = '/adapters.fa'
 star_reference_folder = 'output/star/star_reference'
 
@@ -36,6 +31,7 @@ star_reference_folder = 'output/star/star_reference'
 bbduk_container = 'shub://TomHarrop/seq-utils:bbmap_38.76'
 salmon_container = 'docker://combinelab/salmon:latest'
 kraken_container = 'shub://TomHarrop/singularity-containers:kraken_2.0.7beta'
+bioconductor_container = 'shub://TomHarrop/r-containers:bioconductor_3.11'
 
 #########
 # RULES #
@@ -43,14 +39,11 @@ kraken_container = 'shub://TomHarrop/singularity-containers:kraken_2.0.7beta'
 
 rule target:
     input:
-     #expand('output/asw_salmon/{sample}_quant/quant.sf', sample = all_samples),
-     #'output/deseq2/ruakura/unann/unann_degs_blastx.outfmt6',
-     #'output/deseq2/viral_expressed/no_annot/blastx.outfmt6',
-     #'output/deseq2/ruakura/unann/interpro_degs.fasta.tsv',
-     #'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta.tsv',
      expand('output/asw_mh_concat_salmon/{sample}_quant/quant.sf', sample = all_samples),
+     expand('output/deseq2/{species}_dual/{species}_dual_dds.rds', species = ['asw', 'mh']),
      #expand('output/kraken/reports/kraken_{sample}_report.txt', sample=all_samples),
-     #'output/fastqc'
+     'output/fastqc',
+     'output/deseq2/asw_dual/no_annot/blastx.outfmt6'
 
 rule kraken:
     input:
@@ -76,6 +69,57 @@ rule kraken:
         '--use-names '
         '{input.r1} {input.r2} '
         '&> {log}'
+
+rule blast_unann_degs:
+    input:
+        unann_degs = 'output/deseq2/asw_dual/no_annot/unann_degs.fasta'
+    output:
+        blastx_res = 'output/deseq2/asw_dual/no_annot/blastx.outfmt6'
+    params:
+        blastdb = 'bin/blastdb/nr/nr'
+    threads:
+        40
+    log:
+        'output/logs/blast_unann_degs.log'
+    shell:
+        'blastx '
+        '-query {input.unann_degs} '
+        '-db {params.blastdb} '
+        '-num_threads {threads} '
+        '-evalue 1e-3 '
+        '-outfmt "6 std salltitles" > {output.blastx_res} '
+
+rule filter_unann_degs:
+    input:
+        deg_ids = 'output/deseq2/asw_dual/no_annot/DEGs_ID_no_annot.txt',
+        transcriptome = 'data/asw-mh-combined-transcriptome/output/asw_mh_transcriptome/asw_mh_isoforms_by_length.fasta'
+    output:
+        'output/deseq2/asw_dual/no_annot/unann_degs.fasta'
+    singularity:
+        bbduk_container
+    log:
+        'output/logs/filter_unann_degs.log'
+    shell:
+        'filterbyname.sh '
+        'in={input.transcriptome} '
+        'include=t '
+        'substring=t '
+        'names={input.deg_ids} '
+        'out={output} '
+        '2> {log}'
+
+rule dual_dds:
+    input:
+        gene_trans_map = 'data/asw-mh-combined-transcriptome/output/{species}_edited_transcript_ids/Trinity.fasta.gene_trans_map',
+        quant_files = expand('output/asw_mh_concat_salmon/{sample}_quant/quant.sf', sample=all_samples)
+    output:
+        dual_dds = 'output/deseq2/{species}_dual/{species}_dual_dds.rds'
+    singularity:
+        bioconductor_container
+    log:
+        'output/logs/{species}_dual_dds.log'
+    script:
+        'src/make_dual_dds.R'
 
 rule asw_mh_concat_salmon_quant:
     input:
@@ -106,7 +150,7 @@ rule asw_mh_concat_salmon_quant:
 
 rule asw_mh_concat_salmon_index:
     input:
-        transcriptome_length_filtered = 'data/asw_mh_transcriptome/asw_mh_isoforms_by_length.fasta'
+        transcriptome_length_filtered = 'data/asw-mh-combined-transcriptome/output/asw_mh_transcriptome/asw_mh_isoforms_by_length.fasta'
     output:
         'output/asw_mh_concat_salmon/transcripts_index/refseq.bin'
     params:
@@ -117,200 +161,6 @@ rule asw_mh_concat_salmon_index:
         salmon_container
     log:
         'output/logs/asw_mh_concat_salmon_index.log'
-    shell:
-        'salmon index '
-        '-t {input.transcriptome_length_filtered} '
-        '-i {params.outdir} '
-        '-p {threads} '
-        '&> {log}'
-
-rule interproscan_ru_behaviour_unann_degs:
-    input:
-        interpro_degs = 'output/deseq2/ruakura/unann/interpro_degs.fasta'
-    output:
-        interpro_tsv = 'output/deseq2/ruakura/unann/interpro_degs.fasta.tsv'
-    params:
-        outdir = 'output/deseq2/ruakura/unann'
-    threads:
-        20
-    shell:
-        'bin/interproscan-5.31-70.0/interproscan.sh '
-        '--input {input.interpro_degs} '
-        '--seqtype n '
-        '--output-dir {params.outdir} '
-        '--cpu {threads} '
-        '--goterms'
-
-rule filter_ru_behaviour_degs_for_interproscan:
-    input:
-        deg_ids = 'output/deseq2/ruakura/unann/interproscan_ids.txt',
-        transcriptome_length_filtered = 'data/asw_transcriptome/isoforms_by_length.fasta'
-    output:
-        interpro_degs = 'output/deseq2/ruakura/unann/interpro_degs.fasta'
-    singularity:
-        bbduk_container
-    log:
-        'filter_ru_behaviour_degs_for_interproscan'
-    shell:
-        'filterbyname.sh '
-        'in={input.transcriptome_length_filtered} '
-        'include=t '
-        'substring=t '
-        'names={input.deg_ids} '
-        'out={output.interpro_degs} '
-        '2> {log}'
-
-rule interproscan_viral_unann_degs:
-    input:
-        interpro_degs = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta'
-    output:
-        interpro_tsv = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta.tsv'
-    params:
-        outdir = 'output/deseq2/viral_expressed/no_annot'
-    threads:
-        20
-    shell:
-        'bin/interproscan-5.31-70.0/interproscan.sh '
-        '--input {input.interpro_degs} '
-        '--seqtype n '
-        '--output-dir {params.outdir} '
-        '--cpu {threads} '
-        '--goterms'
-
-rule filter_viral_degs_for_interproscan:
-    input:
-        deg_ids = 'output/deseq2/viral_expressed/interproscan/interproscan_ids.txt',
-        transcriptome_length_filtered = 'data/asw_transcriptome/isoforms_by_length.fasta'
-    output:
-        interpro_degs = 'output/deseq2/viral_expressed/no_annot/interpro_degs.fasta'
-    singularity:
-        bbduk_container
-    log:
-        'output/logs/filter_degs_for_interproscan.log'
-    shell:
-        'filterbyname.sh '
-        'in={input.transcriptome_length_filtered} '
-        'include=t '
-        'substring=t '
-        'names={input.deg_ids} '
-        'out={output.interpro_degs} '
-        '2> {log}'
-
-rule blast_viral_unann_degs:
-    input:
-        unann_degs = 'output/deseq2/viral_expressed/no_annot/degs_no_annot.fasta'
-    output:
-        blastx_res = 'output/deseq2/viral_expressed/no_annot/blastx.outfmt6'
-    params:
-        blastdb = 'bin/blastdb/nr/nr'
-    threads:
-        40
-    log:
-        'output/logs/blast_viral_unann_degs.log'
-    shell:
-        'blastx '
-        '-query {input.unann_degs} '
-        '-db {params.blastdb} '
-        '-num_threads {threads} '
-        '-outfmt "6 std salltitles" > {output.blastx_res} '
-
-rule filter_viral_degs_no_annot:
-    input:
-        deg_ids = 'output/deseq2/viral_expressed/no_annot/degs_no_annot.txt',
-        transcriptome_length_filtered = 'data/asw_transcriptome/isoforms_by_length.fasta'
-    output:
-        unann_degs = 'output/deseq2/viral_expressed/no_annot/degs_no_annot.fasta'
-    singularity:
-        bbduk_container
-    log:
-        'output/logs/filter_viral_degs_no_annot.log'
-    shell:
-        'filterbyname.sh '
-        'in={input.transcriptome_length_filtered} '
-        'include=t '
-        'substring=t '
-        'names={input.deg_ids} '
-        'out={output.unann_degs} '
-        '2> {log}'
-
-rule blast_ru_unann_genes:
-    input:
-        ru_unann_genes = 'output/deseq2/ruakura/unann/unann_degs.fasta'
-    output:
-        blast_res = 'output/deseq2/ruakura/unann/unann_degs_blastx.outfmt6'
-    params:
-        blastdb = 'bin/blastdb/nr/nr'
-    threads:
-        30
-    log:
-        'output/logs/blast_ru_unann_genes.log'
-    shell:
-        'blastx '
-        '-query {input.ru_unann_genes} '
-        '-db {params.blastdb} '
-        '-num_threads {threads} '
-        '-outfmt "6 std salltitles" > {output.blast_res}'
-
-rule filter_ru_unann_genes:
-    input:
-        ru_unann_gene_ids = 'output/deseq2/ruakura/degs_with_no_annot.txt',
-        asw_transcriptome = 'data/asw_transcriptome/isoforms_by_length.fasta'
-    output:
-        ru_unann_genes = 'output/deseq2/ruakura/unann/unann_degs.fasta'
-    threads:
-        50
-    singularity:
-        bbduk_container
-    log:
-        'output/logs/filter_ru_unann_genes.log'
-    shell:
-        'filterbyname.sh '
-        'in={input.asw_transcriptome} '
-        'include=t '
-        'substring=t '
-        'names={input.ru_unann_gene_ids} '
-        'out={output.ru_unann_genes} '
-        '&> {log}'
-
-rule asw_salmon_quant:
-    input:
-        index_output = 'output/asw_salmon/transcripts_index/refseq.bin',
-        trimmed_r1 = 'output/bbduk_trim/{sample}_r1.fq.gz',
-        trimmed_r2 = 'output/bbduk_trim/{sample}_r2.fq.gz'
-    output:
-        quant = 'output/asw_salmon/{sample}_quant/quant.sf'
-    params:
-        index_outdir = 'output/asw_salmon/transcripts_index',
-        outdir = 'output/asw_salmon/{sample}_quant'
-    threads:
-        20
-    singularity:
-        salmon_container
-    log:
-        'output/logs/salmon/asw_salmon_quant_{sample}.log'
-    shell:
-        'salmon quant '
-        '-i {params.index_outdir} '
-        '-l ISR '
-        '-1 {input.trimmed_r1} '
-        '-2 {input.trimmed_r2} '
-        '-o {params.outdir} '
-        '-p {threads} '
-        '&> {log}'
-
-rule asw_salmon_index:
-    input:
-        transcriptome_length_filtered = 'data/asw_transcriptome/isoforms_by_length.fasta'
-    output:
-        'output/asw_salmon/transcripts_index/refseq.bin'
-    params:
-        outdir = 'output/asw_salmon/transcripts_index'
-    threads:
-        20
-    singularity:
-        salmon_container
-    log:
-        'output/logs/asw_salmon_index.log'
     shell:
         'salmon index '
         '-t {input.transcriptome_length_filtered} '
@@ -352,8 +202,6 @@ rule bbduk_trim:
         'ref={params.adapters} '
         'ktrim=r k=23 mink=11 hdist=1 tpe tbo qtrim=r trimq=15 '
         '&> {log}'
-
-##samples over 3 lanes this time - does this still work to concat all reads - think so?
 
 rule join_reads:
     input:

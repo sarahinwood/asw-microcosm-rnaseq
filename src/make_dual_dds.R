@@ -1,8 +1,19 @@
+#!/usr/bin/env Rscript
+
+log <- file(snakemake@log[[1]],
+            open = "wt")
+sink(log,
+     type = "message")
+sink(log,
+     append = TRUE,
+     type = "output")
+
 library(tximport)
 library(data.table)
 library(DESeq2)
 
-gene2tx <- fread("data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/Trinity.fasta.gene_trans_map", header = FALSE)
+gene_trans_map <- snakemake@input[['gene_trans_map']]
+gene2tx <- fread(gene_trans_map, header = FALSE)
 tx2gene <- data.frame(gene2tx[, .(V2, V1)])
 
 ##Find all salmon quant files
@@ -19,4 +30,8 @@ setkey(sample_data, sample_name)
 ##create dds object and link to sample data  
 dds <- DESeqDataSetFromTximport(txi, colData = sample_data[colnames(txi$counts)], design = ~1)
 ##save dds object
-saveRDS(dds, file = "output/deseq2/asw/asw_dds.rds")
+dual_dds <- snakemake@output[['dual_dds']]
+saveRDS(dds, dual_dds)
+
+# log
+sessionInfo()

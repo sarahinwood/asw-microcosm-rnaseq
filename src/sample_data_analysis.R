@@ -1,6 +1,7 @@
-library("data.table")
+library(data.table)
+library(DESeq2)
 
-sample_data <- fread("data/sample_key.csv", header=TRUE)
+sample_data <- fread("data/sample_table.csv", header=TRUE)
 
 ##########################
 ##Sample Parasitism Rate##
@@ -8,40 +9,41 @@ sample_data <- fread("data/sample_key.csv", header=TRUE)
 
 ##Dunedin##
 dunedin <- subset(sample_data, Weevil_Location=="Dunedin")
-##number parasitised
-(sum(dunedin$Parasitism_status=="parasitised"))/(length(dunedin$Sample_name))
+##percent parasitised
+(sum(dunedin$Parasitism_status=="parasitised"))/(sum(dunedin$Weevil_Location=="Dunedin"))*100
 
 dun_evasive <- subset(dunedin, Behaviour=="E")
-(sum(dun_evasive$Parasitism_status=="parasitised"))/(length(dun_evasive$Sample_name))
+(sum(dun_evasive$Parasitism_status=="parasitised"))/(sum(dun_evasive$Behaviour=="E"))*100
 
 dun_nonev <- subset(dunedin, Behaviour=="N")
-(sum(dun_nonev$Parasitism_status=="parasitised"))/(length(dun_nonev$Sample_name))
+(sum(dun_nonev$Parasitism_status=="parasitised"))/(sum(dun_nonev$Behaviour=="N"))*100
 
 
 ##Ruakura##
 ruakura <- subset(sample_data, Weevil_Location=="Ruakura")
 ##number parasitised
-(sum(ruakura$Parasitism_status=="parasitised"))/(length(ruakura$Sample_name))
+((sum(ruakura$Parasitism_status=="parasitised"))/(sum(ruakura$Weevil_Location=="Ruakura")))*100
 
 rua_evasive <- subset(ruakura, Behaviour=="E")
-(sum(rua_evasive$Parasitism_status=="parasitised"))/(length(rua_evasive$Sample_name))
+(sum(rua_evasive$Parasitism_status=="parasitised"))/(sum(rua_evasive$Behaviour=="E"))
 
 rua_nonev <- subset(ruakura, Behaviour=="N")
-(sum(rua_nonev$Parasitism_status=="parasitised"))/(length(rua_nonev$Sample_name))
+(sum(rua_nonev$Parasitism_status=="parasitised"))/(sum(rua_nonev$Behaviour=="N"))
 
 ##############################
 ##Plotting PCR Target Counts##
 ##############################
 
-##ASW##
-asw_dds <- readRDS("output/deseq2/asw/asw_dds.rds")
+## ASW ##
+asw_dds <- readRDS("output/deseq2/asw_dual/asw_dual_dds.rds")
 asw_dds$group <- factor(paste(asw_dds$Parasitism_PCR,sep="_"))
-##plot counts for PCR target gene
-plotCounts(asw_dds, "ASW_TRINITY_DN1031_c1_g2", intgroup = c("group"))
+##plot counts for PCR target gene - two ASW 'genes' COI in transcriptome
+##TRINITY_DN63461_c12_g1
+##TRINITY_DN7363_c1_g1
+plotCounts(asw_dds, "ASW_TRINITY_DN7363_c1_g1", intgroup = c("group"))
 
-##MH##
-
-mh_dds <- readRDS("output/deseq2/mh/mh_dds.rds")
+## MH ##
+mh_dds <- readRDS("output/deseq2/mh_dual/mh_dual_dds.rds")
 mh_dds$group <- factor(paste(mh_dds$Parasitism_PCR,sep="_"))
 ##plot counts for PCR target gene
-plotCounts(mh_dds, "ASW_TRINITY_DN1031_c1_g2", intgroup = c("group"))
+plotCounts(mh_dds, "MH_TRINITY_DN1053_c1_g1", intgroup = c("group"))
