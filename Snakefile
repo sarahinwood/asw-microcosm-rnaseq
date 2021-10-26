@@ -28,10 +28,12 @@ bbduk_adapters = '/adapters.fa'
 star_reference_folder = 'output/star/star_reference'
 
 #containers
-bbduk_container = 'shub://TomHarrop/seq-utils:bbmap_38.76'
-salmon_container = 'docker://combinelab/salmon:latest'
-kraken_container = 'shub://TomHarrop/singularity-containers:kraken_2.0.7beta'
+bbduk_container = 'shub://TomHarrop/singularity-containers:bbmap_38.00'
+salmon_container = 'docker://combinelab/salmon:1.5.1'
+kraken_container = 'docker://staphb/kraken2:2.1.2-no-db'
 bioconductor_container = 'shub://TomHarrop/r-containers:bioconductor_3.11'
+blast_container= 'docker://ncbi/blast:2.12.0'
+multiqc_container = 'docker://ewels/multiqc:v1.11'
 
 #########
 # RULES #
@@ -39,17 +41,16 @@ bioconductor_container = 'shub://TomHarrop/r-containers:bioconductor_3.11'
 
 rule target:
     input:
-     expand('output/asw_mh_concat_salmon/{sample}_quant/quant.sf', sample = all_samples),
-     expand('output/deseq2/{species}_dual/{species}_dual_dds.rds', species = ['asw', 'mh']),
-     #expand('output/kraken/reports/kraken_{sample}_report.txt', sample=all_samples),
      'output/fastqc',
+     'output/multiqc/multiqc_report.html',
+     expand('output/kraken/reports/kraken_{sample}_report.txt', sample=all_samples),
      'output/deseq2/asw_dual/no_annot/blastx.outfmt6'
 
 rule kraken:
     input:
         r1 = 'output/bbduk_trim/{sample}_r1.fq.gz',
         r2 = 'output/bbduk_trim/{sample}_r2.fq.gz',
-        db = 'data/20180917-krakendb'
+        db = 'bin/kraken_2021-05-17_std'
     output:
         out = 'output/kraken/kraken_{sample}_out.txt',
         report = 'output/kraken/reports/kraken_{sample}_report.txt'
@@ -76,17 +77,19 @@ rule blast_unann_degs:
     output:
         blastx_res = 'output/deseq2/asw_dual/no_annot/blastx.outfmt6'
     params:
-        blastdb = 'bin/blastdb/nr/nr'
+        blastdb = 'bin/blast_db/nr/nr'
     threads:
         40
     log:
         'output/logs/blast_unann_degs.log'
+    singularity:
+        blast_container
     shell:
         'blastx '
         '-query {input.unann_degs} '
         '-db {params.blastdb} '
         '-num_threads {threads} '
-        '-evalue 1e-3 '
+        '-evalue 1e-5 '
         '-outfmt "6 std salltitles" > {output.blastx_res} '
 
 rule filter_unann_degs:
@@ -108,18 +111,27 @@ rule filter_unann_degs:
         'out={output} '
         '2> {log}'
 
-rule dual_dds:
+#############
+## mapping ##
+#############
+
+rule multiqc:
     input:
-        gene_trans_map = 'data/asw-mh-combined-transcriptome/output/{species}_edited_transcript_ids/Trinity.fasta.gene_trans_map',
-        quant_files = expand('output/asw_mh_concat_salmon/{sample}_quant/quant.sf', sample=all_samples)
+        expand('output/asw_mh_concat_salmon/{sample}_quant/quant.sf', sample=all_samples)
     output:
-        dual_dds = 'output/deseq2/{species}_dual/{species}_dual_dds.rds'
-    singularity:
-        bioconductor_container
+        'output/multiqc/multiqc_report.html'
+    params:
+        outdir = 'output/multiqc',
+        indirs = ['output/asw_mh_concat_salmon', 'output/fastqc']
     log:
-        'output/logs/{species}_dual_dds.log'
-    script:
-        'src/make_dual_dds.R'
+        'output/logs/multiqc.log'
+    container:
+        multiqc_container
+    shell:
+        'multiqc -f ' ##force to write over old output
+        '-o {params.outdir} '
+        '{params.indirs} '
+        '2> {log}'
 
 rule asw_mh_concat_salmon_quant:
     input:

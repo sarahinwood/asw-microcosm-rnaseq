@@ -3,6 +3,7 @@ library(data.table)
 library(DESeq2)
 library(ggplot2)
 library(EnhancedVolcano)
+library(dplyr)
 
 mh_dds <- readRDS("output/deseq2/mh_dual/mh_dual_dds.rds")
 ##factors and design
@@ -41,3 +42,9 @@ fwrite(sig_annots, "output/deseq2/mh_dual/parasitism_WT/sig_annots.csv")
 ##sig degs with viral blastx
 sig_annots_recip <- merge(sig_annots, viral_recip, by.x="rn", by.y="edited_ids", all.x=TRUE)
 fwrite(sig_annots_recip, "output/deseq2/mh_dual/parasitism_WT/sig_recip_viral_annots.csv")
+
+virus_x <- data.table(dplyr::filter(sig_annots_recip, grepl('Viruses', sprot_Top_BLASTX_hit)))
+virus_y <- data.table(dplyr::filter(sig_annots_recip, grepl('virus', annotation)))
+viral_degs <- full_join(virus_x, virus_y)
+fwrite(viral_degs, "output/deseq2/mh_dual/parasitism_WT/sig_viral_degs.csv")
+

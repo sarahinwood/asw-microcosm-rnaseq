@@ -10,6 +10,10 @@ asw_dds <- readRDS("output/deseq2/asw_dual/asw_dual_dds.rds")
 asw_dds$para <- factor(paste(asw_dds$Parasitism_status))
 asw_dds$location <- factor(paste(asw_dds$Weevil_Location))
 asw_dds$pc1_sign <- factor(paste(asw_dds$PC1_sign))
+##relevel factors
+asw_dds$para <- relevel(asw_dds$para, ref="undetected")
+asw_dds$location <- relevel(asw_dds$location, ref="Dunedin")
+
 asw_dds_para <- copy(asw_dds)
 design(asw_dds_para) <- ~pc1_sign+location+para+location:para
 ##run deseq2
@@ -18,13 +22,13 @@ saveRDS(asw_dds_para, "output/deseq2/asw_dual/INT_WT_parasitism-location/parasit
 
 asw_dds_para <- readRDS("output/deseq2/asw_dual/INT_WT_parasitism-location/parasitism-location-int_WT.rds")
 ##results
-res_group <- results(asw_dds_para, lfcThreshold = 1, alpha = 0.1)
+res_group <- results(asw_dds_para, lfcThreshold = 1, alpha = 0.05)
 summary(res_group)
 ##Order based of padj
 ordered_res_group <- res_group[order(res_group$padj),]
 ##Make data table and write to output
 ordered_res_group_table <- data.table(data.frame(ordered_res_group), keep.rownames = TRUE)
-ordered_sig_res_group_table <- subset(ordered_res_group_table, padj < 0.1)
+ordered_sig_res_group_table <- subset(ordered_res_group_table, padj < 0.05)
 fwrite(ordered_sig_res_group_table, "output/deseq2/asw_dual/INT_WT_parasitism-location/sig_degs.csv")
 fwrite(ordered_res_group_table, "output/deseq2/asw_dual/INT_WT_parasitism-location/res_group.csv")
 

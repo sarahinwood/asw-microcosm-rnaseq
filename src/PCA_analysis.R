@@ -2,6 +2,7 @@ library(data.table)
 library(DESeq2)
 library(ggplot2)
 library(viridis)
+library(tidyverse)
 
 #########
 ## ASW ##
@@ -56,18 +57,22 @@ ggplot(asw_pca_table, aes(x=PC1, y=PC2, color=RQN))+
 
 mh_dds <- readRDS("output/deseq2/mh_dual/mh_dual_dds.rds")
 ##get factors ready for plotting
-mh_dds$para_pcr <- factor(paste(mh_dds$Parasitism_PCR))
+mh_dds$para_pcr <- factor(paste(mh_dds$Parasitism_PCR), levels=c("undetected", "detected", "fail"))
 mh_dds$RQN <- factor(paste(mh_dds$RQN))
 mh_dds$concentration <- factor(paste(mh_dds$conc))
 ##VST transformation
 mh_vst <- varianceStabilizingTransformation(mh_dds, blind=TRUE)
 
-##PCA plotting
+##PCA plotting - want to plot with failed samples on top so can see them
 mh_pca_plot <- plotPCA(mh_vst, intgroup=c("para_pcr"), returnData=TRUE)
 percentVar <- round(100 * attr(mh_pca_plot, "percentVar"))
+
 ##PCA plot (save with dim.s 3.00 x 8.00)
-ggplot(mh_pca_plot, aes(x=PC1, y=PC2, color=para_pcr))+
-  geom_point(size=3, alpha=0.7)+
+##plot fail in separate layer so on top of graph
+ggplot(mh_pca_plot %>% filter(para_pcr!="fail"))+
+  geom_point(aes(x=PC1, y=PC2, color=para_pcr), size=3, alpha=0.7)+
+  geom_point(data=mh_pca_plot %>% filter(para_pcr=="fail"),
+             aes(x=PC1, y=PC2, color=para_pcr), size=3, alpha=0.8)+
   scale_color_viridis(discrete=TRUE)+
   labs(colour="Parastism multiplex\n RT-PCR result")+
   xlab(paste("PC1:", percentVar[1], "% variance")) + 

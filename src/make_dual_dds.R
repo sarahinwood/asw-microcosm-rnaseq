@@ -1,18 +1,8 @@
-#!/usr/bin/env Rscript
-
-log <- file(snakemake@log[[1]],
-            open = "wt")
-sink(log,
-     type = "message")
-sink(log,
-     append = TRUE,
-     type = "output")
-
 library(tximport)
 library(data.table)
 library(DESeq2)
 
-gene_trans_map <- snakemake@input[['gene_trans_map']]
+gene_trans_map <- 'data/asw-mh-combined-transcriptome/output/asw_mh_transcriptome/asw_mh_Trinity.fasta.gene_trans_map'
 gene2tx <- fread(gene_trans_map, header = FALSE)
 tx2gene <- data.frame(gene2tx[, .(V2, V1)])
 
@@ -29,9 +19,21 @@ setkey(sample_data, sample_name)
 
 ##create dds object and link to sample data  
 dds <- DESeqDataSetFromTximport(txi, colData = sample_data[colnames(txi$counts)], design = ~1)
-##save dds object
-dual_dds <- snakemake@output[['dual_dds']]
-saveRDS(dds, dual_dds)
+##estimate size factors on whole dataset
+dds <- estimateSizeFactors(dds)
 
-# log
-sessionInfo()
+##subset gene table into ASW and Mh genes
+asw_tx <- subset(tx2gene, grepl("ASW_", V1))
+asw_gene <- unique(asw_tx$V1)
+mh_tx <- subset(tx2gene, grepl("MH_", V1))
+mh_gene <- unique(mh_tx$V1)
+
+##subset dds
+asw_dds <- dds[asw_gene,]
+saveRDS(asw_dds, "output/deseq2/asw_dual/asw_dual_dds.rds")
+
+mh_dds <- dds[mh_gene,]
+saveRDS(mh_dds, "output/deseq2/mh_dual/mh_dual_dds.rds")
+
+##save whole dds object
+saveRDS(dds, "output/deseq2/dual_dds.rds")
