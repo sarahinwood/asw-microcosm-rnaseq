@@ -1,4 +1,5 @@
 library(tximport)
+library(tidyverse)
 library(data.table)
 library(DESeq2)
 
@@ -21,19 +22,34 @@ setkey(sample_data, sample_name)
 dds <- DESeqDataSetFromTximport(txi, colData = sample_data[colnames(txi$counts)], design = ~1)
 ##estimate size factors on whole dataset
 dds <- estimateSizeFactors(dds)
-
-##subset gene table into ASW and Mh genes
-asw_tx <- subset(tx2gene, grepl("ASW_", V1))
-asw_gene <- unique(asw_tx$V1)
-mh_tx <- subset(tx2gene, grepl("MH_", V1))
-mh_gene <- unique(mh_tx$V1)
-
-##subset dds
-asw_dds <- dds[asw_gene,]
-saveRDS(asw_dds, "output/deseq2/asw_dual/asw_dual_dds.rds")
-
-mh_dds <- dds[mh_gene,]
-saveRDS(mh_dds, "output/deseq2/mh_dual/mh_dual_dds.rds")
-
 ##save whole dds object
 saveRDS(dds, "output/deseq2/dual_dds.rds")
+
+###############################################
+##subset gene table into ASW, Mh & MhV genes ##
+###############################################
+
+##asw gene list
+asw_tx <- subset(tx2gene, grepl("ASW_", V1))
+asw_gene <- unique(asw_tx$V1)
+##MhV gene list
+mhv_genes <- fread("data/mh-rnaseq/output/blast/viral_genes/viral_genes_best_hits.csv")
+mhv_genes$full_id <- paste("MH", mhv_genes$Trinity_ID, sep="_")
+mhv_genes$full_id <- tstrsplit(mhv_genes$full_id, "_i", keep=c(1))
+mhv_gene <- unique(mhv_genes$full_id)
+##mh gene list
+mh_tx <- subset(tx2gene, grepl("MH_", V1))
+mh_gene_not_v <- setdiff(mh_tx$V1, mhv_gene)
+mh_gene <- unique(mh_gene_not_v)
+
+##subset asw dds
+asw_dds <- dds[asw_gene,]
+saveRDS(asw_dds, "output/deseq2/asw_dual/asw_dual_dds.rds")
+##subset mh dds
+mh_dds <- dds[mh_gene,]
+saveRDS(mh_dds, "output/deseq2/mh_dual/mh_dual_dds.rds")
+##subset MhV dds
+mhv_dds <- dds[mhv_gene,]
+saveRDS(mhv_dds, "output/deseq2/mhv_dual/mhv_dual_dds.rds")
+
+

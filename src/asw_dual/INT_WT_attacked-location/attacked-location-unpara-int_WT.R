@@ -16,14 +16,17 @@ asw_dds$pc1_sign <- factor(paste(asw_dds$PC1_sign))
 ##relevel factors
 asw_dds$attacked <- relevel(asw_dds$attacked, ref="Y")
 asw_dds$location <- relevel(asw_dds$location, ref="Dunedin")
+##remove para samples
+asw_dds <- asw_dds[,asw_dds$para=="undetected"]
+
 
 asw_dds_att_loc <- copy(asw_dds)
-design(asw_dds_att_loc) <- ~pc1_sign+para+location+attacked+location:attacked
+design(asw_dds_att_loc) <- ~pc1_sign+location+attacked+location:attacked
 ##run deseq2
 asw_dds_att_loc <- DESeq(asw_dds_att_loc)
-saveRDS(asw_dds_att_loc, "output/deseq2/asw_dual/INT_WT_attacked-location/parasitism-location-int_WT.rds")
+saveRDS(asw_dds_att_loc, "output/deseq2/asw_dual/INT_WT_attacked-location-unpara/parasitism-location-int_WT.rds")
 
-asw_dds_att_loc <- readRDS("output/deseq2/asw_dual/INT_WT_attacked-location/parasitism-location-int_WT.rds")
+asw_dds_att_loc <- readRDS("output/deseq2/asw_dual/INT_WT_attacked-location-unpara/parasitism-location-int_WT.rds")
 ##results
 res_group <- results(asw_dds_att_loc, lfcThreshold = 1, alpha = 0.05)
 summary(res_group)
@@ -32,8 +35,8 @@ ordered_res_group <- res_group[order(res_group$padj),]
 ##Make data table and write to output
 ordered_res_group_table <- data.table(data.frame(ordered_res_group), keep.rownames = TRUE)
 ordered_sig_res_group_table <- subset(ordered_res_group_table, padj < 0.05)
-fwrite(ordered_sig_res_group_table, "output/deseq2/asw_dual/INT_WT_attacked-location/sig_degs.csv")
-fwrite(ordered_res_group_table, "output/deseq2/asw_dual/INT_WT_attacked-location/res_group.csv")
+fwrite(ordered_sig_res_group_table, "output/deseq2/asw_dual/INT_WT_attacked-location-unpara/sig_degs.csv")
+fwrite(ordered_res_group_table, "output/deseq2/asw_dual/INT_WT_attacked-location-unpara/res_group.csv")
 
 asw_dds_att_loc$group <- factor(paste(asw_dds_att_loc$Attacked, asw_dds_att_loc$location, sep=" "))
 
@@ -41,12 +44,12 @@ plotCounts(asw_dds_att_loc, "ASW_TRINITY_DN18602_c0_g1", intgroup=("group"))
 
 trinotate_report <- fread("data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/trinotate_longest_isoform.csv", na.strings = ".")
 sig_annots <- merge(ordered_sig_res_group_table, trinotate_report, by.x="rn", by.y="#gene_id", all.x=TRUE)
-fwrite(sig_annots, "output/deseq2/asw_dual/INT_WT_attacked-location/sig_annots.csv")
+fwrite(sig_annots, "output/deseq2/asw_dual/INT_WT_attacked-location-unpara/sig_annots.csv")
 
 #############
 ## heatmap ##
 #############
-all_sig_annots <- fread("output/deseq2/asw_dual/INT_WT_attacked-location/sig_blast_annots.csv")
+all_sig_annots <- sig_annots
 ##vst transform
 asw_vst <- varianceStabilizingTransformation(asw_dds_att_loc, blind=TRUE)
 asw_vst_assay_dt <- data.table(assay(asw_vst), keep.rownames=TRUE)

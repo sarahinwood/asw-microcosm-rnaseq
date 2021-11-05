@@ -32,20 +32,22 @@ ggplot(pca_plot, aes(x=PC1, y=PC2, color=para_pcr))+
   theme_bw()
 
 ##PCA with concentration and RQN
-asw_pca_table <- data.table(plotPCA(asw_vst, intgroup=c("RQN"), returnData=TRUE))
+asw_pca_table <- data.table(plotPCA(asw_vst, intgroup=c("location"), returnData=TRUE))
+percentVar <- round(100 * attr(asw_pca_table, "percentVar"))
+
 ##conc
 asw_pca_table$concentration <- sapply(asw_pca_table$concentration, as.character)
 asw_pca_table$concentration <- sapply(asw_pca_table$concentration, as.numeric)
 ##RQN
+##RNA\nconcentration\n(ng/uL) for concentration for plot label
 asw_pca_table$RQN <- sapply(asw_pca_table$RQN, as.character)
 asw_pca_table$RQN <- sapply(asw_pca_table$RQN, as.numeric)
 
 ##PCA plot (save with dim.s 3.00 x 8.00)
-##RNA\nconcentration\n(ng/uL) for concentration
-ggplot(asw_pca_table, aes(x=PC1, y=PC2, color=RQN))+
+ggplot(asw_pca_table, aes(x=PC1, y=PC2, color=location))+
   geom_point(size=3, alpha=0.7)+
-  scale_color_viridis()+
-  labs(colour="RQN")+
+  scale_color_viridis(discrete=TRUE)+
+  labs(colour="Location")+
   xlab(paste("PC1:", percentVar[1], "% variance")) + 
   ylab(paste("PC2:", percentVar[2], "% variance")) + 
   coord_fixed()+

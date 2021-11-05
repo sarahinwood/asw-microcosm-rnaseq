@@ -49,6 +49,13 @@ ggplot(full_read_mapping, aes(x=Parasitism_status, y=`%_ofmapped_MH`))+
 ##t test for Mh mapping between para and undetected
 t.test(`%_ofmapped_MH` ~ Parasitism_status, data=full_read_mapping)
 
+##t test for Mh mapping between INv para and undetected
+full_read_mapping$Location <- tstrsplit(full_read_mapping$sample_name, "", keep=c(1))
+inv_para_all_unpara <- subset(full_read_mapping, !(Parasitism_status=="parasitized"&Location=="R"))
+t.test(`%_ofmapped_MH` ~ Parasitism_status, data=inv_para_all_unpara)
+
+
+
 #t test for mapping rates of parasitised ASW on location
 para_mapping <- subset(full_read_mapping, Parasitism_status=="parasitized")
 para_mapping$location <- tstrsplit(para_mapping$sample_name, "", keep=c(1))

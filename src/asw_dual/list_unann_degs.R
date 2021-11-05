@@ -7,14 +7,15 @@ location <- fread("output/deseq2/asw_dual/WT_location/sig_annots.csv")
 attacked <- fread("output/deseq2/asw_dual/WT_attacked/sig_annots.csv")
 para_loc <- fread("output/deseq2/asw_dual/INT_WT_parasitism-location/sig_annots.csv")
 att_loc <- fread("output/deseq2/asw_dual/INT_WT_attacked-location/sig_annots.csv")
+ru_att<- fread("output/deseq2/asw_dual/WT_location-attack/Ruakura_sig_annots.csv")
+inv_att <- fread("output/deseq2/asw_dual/WT_location-attack/Invermay_sig_annots.csv")
 
 ##make full table of all DEGs
-full_table <- full_join(para, full_join(location, full_join(attacked, full_join(para_loc, att_loc))))
+full_table <- full_join(para, full_join(location, full_join(attacked, full_join(para_loc, full_join(att_loc, full_join(ru_att, inv_att))))))
 
 ##write list for blast
 sig_no_annots <- subset(full_table, full_table$sprot_Top_BLASTX_hit=="")
-sig_no_annots$right_rn <- tstrsplit(sig_no_annots$rn, ".", fixed=TRUE, keep=c(1)) 
-fwrite(list(unique(sig_no_annots$right_rn)), "output/deseq2/asw_dual/no_annot/DEGs_ID_no_annot.txt")
+fwrite(list(unique(sig_no_annots$rn)), "output/deseq2/asw_dual/no_annot/DEGs_ID_no_annot.txt")
 
 ##blastx for unann
 unann_deg_blast <- fread("output/deseq2/asw_dual/no_annot/blastx.outfmt6")
@@ -53,3 +54,9 @@ fwrite(para_loc_annots, "output/deseq2/asw_dual/INT_WT_parasitism-location/sig_b
 ##attack-loc
 att_loc_annots <- merge(att_loc, min_evalues, by="rn", all.x=TRUE)
 fwrite(att_loc_annots, "output/deseq2/asw_dual/INT_WT_attacked-location/sig_blast_annots.csv")
+##Ru attack
+ru_att_annots <- merge(ru_att, min_evalues, by="rn", all.x=TRUE)
+fwrite(ru_att_annots, "output/deseq2/asw_dual/WT_location-attack/Ruakura_sig_blast_annots.csv")
+##Inv attack
+inv_att_annots <- merge(inv_att, min_evalues, by="rn", all.x=TRUE)
+fwrite(ru_att_annots, "output/deseq2/asw_dual/WT_location-attack/Invermay_sig_blast_annots.csv")

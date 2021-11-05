@@ -1,8 +1,10 @@
-library(tximport)
 library(data.table)
 library(DESeq2)
 library(ggplot2)
 library(EnhancedVolcano)
+library(viridis)
+library(pheatmap)
+library(tidyverse)
 
 asw_dds <- readRDS("output/deseq2/asw_dual/asw_dual_dds.rds")
 ##factors and design
@@ -41,3 +43,28 @@ EnhancedVolcano(ordered_res_group_table, x="log2FoldChange", y="padj", lab="", t
                 subtitle="", pointSize = 1.5, pCutoff = 0.05, colAlpha=0.2,
                 col=c("#FDE725FF", "#21908CFF", "grey20", "#440154FF"))
 
+#############
+## heatmap ##
+#############
+all_sig_annots <- fread("output/deseq2/asw_dual/WT_attacked/sig_blast_annots.csv")
+##vst transform
+asw_vst <- varianceStabilizingTransformation(asw_dds_attack, blind=TRUE)
+asw_vst_assay_dt <- data.table(assay(asw_vst), keep.rownames=TRUE)
+##subset for DEGs
+asw_vst_degs <- subset(asw_vst_assay_dt, rn %in% all_sig_annots$rn)
+asw_vst_degs$rn <- tstrsplit(asw_vst_degs$rn, "ASW_", keep=c(2))
+##turn first row back to row name
+asw_vst_degs <- asw_vst_degs %>% remove_rownames %>% column_to_rownames(var="rn")
+##reorder for plot
+asw_vst_degs <- asw_vst_degs[,c(1:22,24,27,28,32,37,38,41,42:79,23,25,26,29,30,31,33,34,35,36,39,40)]
+
+##get tissue label info
+sample_to_location <- data.table(data.frame(colData(asw_dds_attack)[,c("Attacked", "sample_name")]))
+sample_to_location <- sample_to_location %>% remove_rownames %>% column_to_rownames(var="sample_name")
+
+location_colours <- list(Attacked=c(Y="#FEAF77FF", NO="#F1605DFF"))
+##plot
+##not clustered by sample
+pheatmap(asw_vst_degs, cluster_rows=TRUE, cluster_cols=FALSE, show_rownames=TRUE,
+         annotation_col=sample_to_location, annotation_colors=location_colours, annotation_names_col=FALSE,
+         show_colnames = FALSE, border_color=NA, color=viridis(50))

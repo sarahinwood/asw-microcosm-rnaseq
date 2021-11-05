@@ -45,18 +45,3 @@ annot_sig_fgsea <- merge(sig_fgsea_res, go_annot_table, by.x="pathway", by.y="pa
 ##need number of genes in leading edge for lollipop plot
 annot_sig_fgsea$leadingEdge_size <- str_count(annot_sig_fgsea$leadingEdge, "TRINITY_DN")
 fwrite(annot_sig_fgsea, "output/deseq2/asw_dual/WT_parasitism/sig_GO_enrichment.csv")
-
-##split into 3 tables --> biological process, cellular component and molecular function
-bp_res <- annot_sig_fgsea[annot_sig_fgsea$pathway_kind=="biological_process"]
-cc_res <- annot_sig_fgsea[annot_sig_fgsea$pathway_kind=="cellular_component"]
-mf_res <- annot_sig_fgsea[annot_sig_fgsea$pathway_kind=="molecular_function"]
-
-##lollipop plot
-ggplot(bp_res, aes(reorder(pathway_name, NES), NES)) +
-  geom_segment(aes(y=0, yend=bp_res$NES, x=pathway_name, xend=pathway_name), alpha=0.4)+
-  geom_point(aes(colour=padj, size=leadingEdge_size)) + 
-  labs(x="Biological Process GO Pathway", y="FGSEA Normalized Enrichment Score",
-       colour="Adjusted\nP-Value", size="Leading\nEdge Size") + 
-  coord_flip() +
-  scale_colour_viridis()+
-  theme_bw()

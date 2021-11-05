@@ -4,6 +4,7 @@ library(DESeq2)
 library(ggplot2)
 library(EnhancedVolcano)
 library(viridis)
+library(tidyverse)
 
 asw_dds <- readRDS("output/deseq2/asw_dual/asw_dual_dds.rds")
 ##factors and design
@@ -34,7 +35,7 @@ fwrite(ordered_res_group_table, "output/deseq2/asw_dual/INT_WT_parasitism-locati
 
 asw_dds_para$group <- factor(paste(asw_dds_para$Parasitism_status, asw_dds_para$location, sep=" "))
 ##plot
-plot <- plotCounts(asw_dds_para, "ASW_TRINITY_DN8033_c0_g1", intgroup=("group"), returnData = TRUE)
+plot <- plotCounts(asw_dds_para, "ASW_TRINITY_DN30769_c1_g2", intgroup=("group"), returnData = TRUE)
 ggplot(plot, aes(x=group, y=count))+
   ylab("Normalised counts")+
   xlab("")+
@@ -44,3 +45,26 @@ ggplot(plot, aes(x=group, y=count))+
 trinotate_report <- fread("data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/trinotate_longest_isoform.csv", na.strings = ".")
 sig_annots <- merge(ordered_sig_res_group_table, trinotate_report, by.x="rn", by.y="#gene_id", all.x=TRUE)
 fwrite(sig_annots, "output/deseq2/asw_dual/INT_WT_parasitism-location/sig_annots.csv")
+
+##########
+## plot ##
+##########
+
+##get gene counts
+counts_table <- data.table(counts(asw_dds_para, normalized=TRUE), keep.rownames = TRUE)
+annot_counts <- filter(counts_table, rn %in% sig_annots$rn)
+##melt for plotting
+plot_annots_counts <- annot_counts %>% gather(colnames(annot_counts)[2:80], key="sample_name", value="normalized_counts")
+##sample group information
+sample_to_group <- data.frame(colData(asw_dds_para)[,c(1,9,12)])
+sample_to_group$group <- paste(sample_to_group$Weevil_Location, sample_to_group$Parasitism_status, sep="_")
+plotting_counts <- inner_join(plot_annots_counts, sample_to_group)
+##plot all annot DEGs using ggplot2
+ggplot(plotting_counts) +
+  geom_point(aes(x = group, y = normalized_counts, colour=group), alpha=0.5) +
+  labs(colour="Group", y="Normalized counts", x="")+
+  scale_colour_viridis(discrete=TRUE)+
+  theme_bw() +
+  theme(axis.text.x = element_blank()) +
+  facet_wrap(~rn, scales="free")
+

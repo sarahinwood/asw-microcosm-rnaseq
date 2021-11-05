@@ -1,8 +1,9 @@
-library(tximport)
 library(data.table)
+library(tidyverse)
 library(DESeq2)
-library(ggplot2)
 library(EnhancedVolcano)
+library(pheatmap)
+library(viridis)
 
 asw_dds <- readRDS("output/deseq2/asw_dual/asw_dual_dds.rds")
 ##factors and design
@@ -41,12 +42,47 @@ EnhancedVolcano(ordered_res_group_table, x="log2FoldChange", y="padj", lab="", t
 
 plotCounts(asw_dds_location, "ASW_TRINITY_DN8550_c0_g1", intgroup="location")
 
+##overlap with exposed-RNA-seq location analysis
 exposed_location_degs <- fread("/Volumes/archive/deardenlab/sarahinwood/asw_projects/asw-exposed-rnaseq/output/deseq2/asw/all_location/sig_w_annots.csv")
 ordered_sig_res_group_table$rn_edited <- tstrsplit(ordered_sig_res_group_table$rn, "ASW_", keep=c(2))
 shared_degs <- intersect(exposed_location_degs$rn, ordered_sig_res_group_table$rn_edited)
 exposed_sp <- setdiff(exposed_location_degs$rn, ordered_sig_res_group_table$rn_edited)
 evasion_sp <- setdiff(ordered_sig_res_group_table$rn_edited, exposed_location_degs$rn)
-
 ##which degs in both?
 sig_annots$edited_rn <- tstrsplit(sig_annots$rn, "ASW_", keep=c(2))
 shared_sig_annots <- subset(sig_annots, edited_rn %in% shared_degs)
+
+#############
+## heatmap ##
+#############
+all_sig_annots <- fread("output/deseq2/asw_dual/WT_location/sig_blast_annots.csv")
+##vst transform
+asw_vst <- varianceStabilizingTransformation(asw_dds_location, blind=TRUE)
+asw_vst_assay_dt <- data.table(assay(asw_vst), keep.rownames=TRUE)
+##subset for DEGs
+asw_vst_degs <- subset(asw_vst_assay_dt, rn %in% all_sig_annots$rn)
+asw_vst_degs$rn <- tstrsplit(asw_vst_degs$rn, "ASW_", keep=c(2))
+##turn first row back to row name
+asw_vst_degs <- asw_vst_degs %>% remove_rownames %>% column_to_rownames(var="rn")
+
+##get tissue label info
+sample_to_location <- data.table(data.frame(colData(asw_dds_location)[,c("location", "sample_name")]))
+sample_to_location <- sample_to_location %>% remove_rownames %>% column_to_rownames(var="sample_name")
+
+location_colours <- list(location = c(Dunedin="#3B0F70FF", Ruakura="#B63679FF"))
+##plot
+##not clustered by sample
+pheatmap(asw_vst_degs, cluster_rows=TRUE, cluster_cols=FALSE, show_rownames=FALSE,
+         annotation_col=sample_to_location, annotation_colors=location_colours, annotation_names_col=FALSE,
+         show_colnames = FALSE, border_color=NA, color=viridis(50))
+
+##also plot only annotated
+only_annot <- subset(all_sig_annots, sprot_Top_BLASTX_hit!="")
+asw_vst_degs_annot <- subset(asw_vst_assay_dt, rn %in% only_annot$rn)
+asw_vst_degs_annot$rn <- tstrsplit(asw_vst_degs_annot$rn, "ASW_", keep=c(2))
+##turn first row back to row name
+asw_vst_degs_annot <- asw_vst_degs_annot %>% remove_rownames %>% column_to_rownames(var="rn")
+##plot
+pheatmap(asw_vst_degs_annot, cluster_rows=TRUE, cluster_cols=FALSE, show_rownames=FALSE,
+         annotation_col=sample_to_location, annotation_colors=location_colours, annotation_names_col=FALSE,
+         show_colnames = FALSE, border_color=NA, color=viridis(50))
